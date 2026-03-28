@@ -10,8 +10,6 @@ This guide uses the undocumented `LARKSUITE_CLI_CONFIG_DIR` env var to create fu
 
 ## Prerequisites
 
-Run these checks first:
-
 ```bash
 # Check if lark-cli is installed
 lark-cli --version
@@ -29,17 +27,20 @@ npx skills add larksuite/cli -y -g
 
 Ask the user:
 - How many Feishu accounts do you have?
-- For each account: a short name (e.g., "work", "personal") and which tenant it belongs to
+- For each account: a **short name** (used in commands and directory names)
 
-Example: two accounts named "work" (enterprise) and "personal" (personal edition).
+Example answers:
+- 2 accounts: "work" and "personal"
+- 3 accounts: "companyA", "companyB", "personal"
+
+Store these names as `ACCOUNT_NAMES` for use in the following steps. All subsequent steps should be repeated for **each account**.
 
 ## Step 2: Create isolated config directories
 
-For each account, create a separate directory:
+For each account name `<name>`:
 
 ```bash
-mkdir -p ~/.lark-cli-work
-mkdir -p ~/.lark-cli-personal
+mkdir -p ~/.lark-cli-<name>
 ```
 
 ## Step 3: Initialize each account (requires user interaction)
@@ -49,51 +50,33 @@ For EACH account, run the following. The command will output a browser URL — s
 **IMPORTANT:** Do these one at a time. Each `config init --new` only affects its own directory thanks to the env var.
 
 ```bash
-# Account 1: work
-LARKSUITE_CLI_CONFIG_DIR=~/.lark-cli-work lark-cli config init --new
-# Tell user: "Open the URL in browser and complete setup with your WORK/ENTERPRISE Feishu account"
+# Replace <name> with the account name
+LARKSUITE_CLI_CONFIG_DIR=~/.lark-cli-<name> lark-cli config init --new
+# Tell user: "Open the URL in browser and complete setup with your <name> Feishu account"
 
 # After config init succeeds:
-LARKSUITE_CLI_CONFIG_DIR=~/.lark-cli-work lark-cli auth login --recommend
-# Tell user: "Open the URL in browser and authorize with your WORK/ENTERPRISE Feishu account"
+LARKSUITE_CLI_CONFIG_DIR=~/.lark-cli-<name> lark-cli auth login --recommend
+# Tell user: "Open the URL in browser and authorize with your <name> Feishu account"
 ```
 
-```bash
-# Account 2: personal
-LARKSUITE_CLI_CONFIG_DIR=~/.lark-cli-personal lark-cli config init --new
-# Tell user: "Open the URL in browser and complete setup with your PERSONAL Feishu account"
-
-# After config init succeeds:
-LARKSUITE_CLI_CONFIG_DIR=~/.lark-cli-personal lark-cli auth login --recommend
-# Tell user: "Open the URL in browser and authorize with your PERSONAL Feishu account"
-```
+Repeat for every account.
 
 ## Step 4: Create wrapper scripts
 
-Detect the user's shell and create scripts accordingly.
+For each account name `<name>`, create a wrapper script called `lark-<name>`.
 
 ### For bash/zsh (macOS, Linux, Git Bash on Windows):
 
 ```bash
-# Find a directory in PATH for scripts
-# Common choices: ~/bin, ~/.local/bin, /usr/local/bin
-
 mkdir -p ~/bin
 
-# Create wrapper for each account
-cat > ~/bin/lark-work << 'EOF'
+# Repeat for each account <name>:
+cat > ~/bin/lark-<name> << EOF
 #!/bin/bash
-export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-work"
-exec lark-cli "$@"
+export LARKSUITE_CLI_CONFIG_DIR="\$HOME/.lark-cli-<name>"
+exec lark-cli "\$@"
 EOF
-
-cat > ~/bin/lark-personal << 'EOF'
-#!/bin/bash
-export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-personal"
-exec lark-cli "$@"
-EOF
-
-chmod +x ~/bin/lark-work ~/bin/lark-personal
+chmod +x ~/bin/lark-<name>
 ```
 
 Make sure `~/bin` is in PATH. If not, add to `~/.bashrc` or `~/.zshrc`:
@@ -104,60 +87,44 @@ export PATH="$HOME/bin:$PATH"
 ### For PowerShell (Windows native):
 
 ```powershell
-# Create wrapper functions in PowerShell profile
-$profileDir = Split-Path $PROFILE
-New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
-
-Add-Content $PROFILE @'
-
-function lark-work {
-    $env:LARKSUITE_CLI_CONFIG_DIR = "$env:USERPROFILE\.lark-cli-work"
+# Add to $PROFILE for each account <name>:
+function lark-<name> {
+    $env:LARKSUITE_CLI_CONFIG_DIR = "$env:USERPROFILE\.lark-cli-<name>"
     & lark-cli @args
     Remove-Item Env:\LARKSUITE_CLI_CONFIG_DIR
 }
-
-function lark-personal {
-    $env:LARKSUITE_CLI_CONFIG_DIR = "$env:USERPROFILE\.lark-cli-personal"
-    & lark-cli @args
-    Remove-Item Env:\LARKSUITE_CLI_CONFIG_DIR
-}
-'@
 ```
 
 ## Step 5: Verify
 
-Test both accounts:
+Test each account:
 
 ```bash
-lark-work auth status
-# Should show the work/enterprise account
-
-lark-personal auth status
-# Should show the personal account
+lark-<name> auth status
+# Should show the correct username for this account
 ```
 
-If both return valid status with different usernames, the setup is complete.
+If all accounts return valid status with different usernames, the setup is complete.
 
 ## Step 6: Configure your agent (optional)
 
-Add this to your project's CLAUDE.md, .cursorrules, or equivalent agent config:
+Add this to your project's CLAUDE.md, .cursorrules, or equivalent agent config file. Replace the table with actual account info from the setup:
 
 ```markdown
 ## Feishu CLI (lark-cli)
 
-Two Feishu accounts available:
+Multiple Feishu accounts available:
 
 | Command | Account | Tenant |
 |---------|---------|--------|
-| `lark-work` | <work_username> | Enterprise |
-| `lark-personal` | <personal_username> | Personal |
+| `lark-<name1>` | <username1> | <tenant1> |
+| `lark-<name2>` | <username2> | <tenant2> |
 
 Rules:
 - All Feishu operations use lark-cli via these wrapper commands
 - If the user specifies an account name or type, use the corresponding command
-- If a URL contains `<company>.feishu.cn` (enterprise subdomain), use `lark-work`
 - Otherwise, ask the user which account to use before proceeding
-- Fetch documents: `lark-work docs +fetch --doc "<URL>" --format pretty`
+- Fetch documents: `lark-<name> docs +fetch --doc "<URL>" --format pretty`
 ```
 
 ## Troubleshooting
