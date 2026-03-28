@@ -1,6 +1,4 @@
-# lark-cli Multi-Account Setup
-
-[飞书 CLI](https://github.com/larksuite/cli) 多账号解决方案。适用于同时使用企业版和个人版飞书的用户。
+的用户。
 
 ## 问题
 
